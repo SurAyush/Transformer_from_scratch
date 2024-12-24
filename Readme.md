@@ -22,6 +22,7 @@ This project implements a basic Transformer model trained on the **Samantar Data
 
 The primary goal of this project is to understand the Transformer architecture and build it from scratch.  
 
+Character level encoding is used over there for simplicity unlike the Byte Pair Encoding algorithm which is widely used and much better in storing syntatic and semantic information of tokens.
 ---
 
 ## Dataset  
