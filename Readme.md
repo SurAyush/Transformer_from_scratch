@@ -21,8 +21,7 @@ Transformers have become the de-facto standard for translation tasks due to thei
 This project implements a basic Transformer model trained on the **Samantar Dataset**. The model is far from being a standard English-Bengali translator and currently produces nearly random Bengali word sequences for given English input sequences.  
 
 The primary goal of this project is to understand the Transformer architecture and build it from scratch.  
-
-Character level encoding is used over there for simplicity unlike the Byte Pair Encoding algorithm which is widely used and much better in storing syntatic and semantic information of tokens.
+Character level encoding is used over here for simplicity, unlike the Byte Pair Encoding algorithm which is widely used and much better in encoding syntatic and semantic information of tokens.
 ---
 
 ## Dataset  
