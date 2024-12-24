@@ -1,12 +1,10 @@
 import torch
-from torch import nn
+import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-import math
 
-# cpu for now
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Transformer from scratch
 class PositionalEmbedding(nn.Module):
     def __init__(self,seq_len, d_model):
         super().__init__()
@@ -47,6 +45,7 @@ class TransformerEmbedding(nn.Module):
     def batch_tokenize(self, batch, start_token=True, end_token=True):
 
         def tokenize(sentence, start_token=True, end_token=True):
+
             sentence_word_indicies = [self.language_to_index[token] for token in list(sentence)]
             # start token
             if start_token:
@@ -57,7 +56,11 @@ class TransformerEmbedding(nn.Module):
             # padding token
             for _ in range(len(sentence_word_indicies), self.max_sequence_length):
                 sentence_word_indicies.append(self.language_to_index[self.PADDING_TOKEN])
+
+            sentence_word_indicies = sentence_word_indicies[0:self.max_sequence_length]
+
             return torch.tensor(sentence_word_indicies)
+            
 
         tokenized = []
         for sentence_num in range(len(batch)):
@@ -68,7 +71,6 @@ class TransformerEmbedding(nn.Module):
     def forward(self, x,start_token = True, end_token=True): 
         # x: batch of sentences
         x = self.batch_tokenize(x ,start_token, end_token)
-        print(x)
         x = self.embedding(x)
         pos = self.position_encoder().to(device)
         x = self.dropout(x + pos)
@@ -110,6 +112,7 @@ class MultiHeadSA(nn.Module):
         if mask is None:
             attention_score = torch.softmax(q @ k.transpose(-2, -1) / (self.head_size ** 0.5), dim=-1)
         else:
+            mask = mask.unsqueeze(1)  # for broadcasting
             attention_score = torch.softmax(q @ k.transpose(-2, -1) / (self.head_size ** 0.5) + mask, dim=-1)
         res = attention_score @ v                                       # (B,H,T,head_size)
         res = res.permute(0,2,1,3).reshape(B, T, self.d_model)   
@@ -207,8 +210,11 @@ class MultiHeadCA(nn.Module):
         q = q.reshape(B, -1, self.n_heads, self.head_size)        # (B,T,nH,head_size)
         q = q.permute(0,2,1,3)
         k, v = torch.chunk(kv, 2, dim=-1)
-        # no masking in cross attention
-        attention_score = torch.softmax(q @ k.transpose(-2, -1) / (self.head_size ** 0.5), dim=-1)
+        if mask is None:
+            attention_score = torch.softmax(q @ k.transpose(-2, -1) / (self.head_size ** 0.5), dim=-1)
+        else:
+            mask = mask.unsqueeze(1)  # for broadcasting
+            attention_score = torch.softmax(q @ k.transpose(-2, -1) / (self.head_size ** 0.5) + mask, dim=-1)
         res = attention_score @ v
         res = res.permute(0,2,1,3).reshape(B, T, self.d_model)
         res = self.linear(res)
@@ -277,8 +283,7 @@ class Transformer(nn.Module):
 
     def forward(self,x,y,encoder_self_attention_mask = None, decoder_self_attention_mask = None, decoder_cross_attention_mask = None, enc_start_token= False, enc_end_token = False, dec_start_token = True, dec_end_token=True):
 
-        x = self.encoder(x, encoder_self_attention_mask, start_token=enc_start_token, end_token=enc_end_token)
-        out = self.decoder(x, y, decoder_self_attention_mask, decoder_cross_attention_mask, start_token=dec_start_token, end_token=dec_end_token)
-        out = self.linear(out)
+        x = self.encoder(x, start_token=enc_start_token, end_token=enc_end_token, mask = encoder_self_attention_mask)
+        out = self.decoder(x, y, self_attention_mask = decoder_self_attention_mask, cross_attention_mask = decoder_cross_attention_mask, start_token=dec_start_token, end_token=dec_end_token)
+        out = self.lin_map(out)
         return out
-
